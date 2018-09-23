@@ -136,6 +136,7 @@ def find_valid_answer_spans(passage_tokens: List[Token],
 
 
 def make_reading_comprehension_instance(question_tokens: List[Token],
+                                        answer_tokens: List[Token],
                                         passage_tokens: List[Token],
                                         token_indexers: Dict[str, TokenIndexer],
                                         passage_text: str,
@@ -189,6 +190,7 @@ def make_reading_comprehension_instance(question_tokens: List[Token],
     passage_field = TextField(passage_tokens, token_indexers)
     fields['passage'] = passage_field
     fields['question'] = TextField(question_tokens, token_indexers)
+    fields['answer'] = TextField(answer_tokens, token_indexers)
     metadata = {'original_passage': passage_text, 'token_offsets': passage_offsets,
                 'question_tokens': [token.text for token in question_tokens],
                 'passage_tokens': [token.text for token in passage_tokens], }

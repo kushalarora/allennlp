@@ -16,8 +16,8 @@ from allennlp.training.metrics import BooleanAccuracy, CategoricalAccuracy, Squa
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-@Model.register("bidaf")
-class BidirectionalAttentionFlow(Model):
+@Model.register("knowledgeqa")
+class KnowledgeQA(Model):
     """
     This class implements Minjoon Seo's `Bidirectional Attention Flow model
     <https://www.semanticscholar.org/paper/Bidirectional-Attention-Flow-for-Machine-Seo-Kembhavi/7586b7cca1deba124af80609327395e613a20e9d>`_
@@ -74,7 +74,7 @@ class BidirectionalAttentionFlow(Model):
                  mask_lstms: bool = True,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
-        super(BidirectionalAttentionFlow, self).__init__(vocab, regularizer)
+        super(KnowledgeQA, self).__init__(vocab, regularizer)
 
         self._text_field_embedder = text_field_embedder
         self._highway_layer = TimeDistributed(Highway(text_field_embedder.get_output_dim(),
@@ -117,7 +117,6 @@ class BidirectionalAttentionFlow(Model):
     def forward(self,  # type: ignore
                 question: Dict[str, torch.LongTensor],
                 passage: Dict[str, torch.LongTensor],
-                answer: Dict[str, torch.LongTensor],
                 span_start: torch.IntTensor = None,
                 span_end: torch.IntTensor = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
@@ -171,7 +170,6 @@ class BidirectionalAttentionFlow(Model):
             string from the original passage that the model thinks is the best answer to the
             question.
         """
-        import pdb;pdb.set_trace()
         embedded_question = self._highway_layer(self._text_field_embedder(question))
         embedded_passage = self._highway_layer(self._text_field_embedder(passage))
         batch_size = embedded_question.size(0)

@@ -14,6 +14,7 @@ from allennlp.models.decomposable_attention import DecomposableAttention
 from allennlp.models.event2mind import Event2Mind
 from allennlp.models.encoder_decoders.simple_seq2seq import SimpleSeq2Seq
 from allennlp.models.reading_comprehension.bidaf import BidirectionalAttentionFlow
+from allennlp.models.reading_comprehension.bidaf_abstractive import BidirectionalAttentionFlowAbstractive
 from allennlp.models.semantic_parsing.nlvr.nlvr_coverage_semantic_parser import NlvrCoverageSemanticParser
 from allennlp.models.semantic_parsing.nlvr.nlvr_direct_semantic_parser import NlvrDirectSemanticParser
 from allennlp.models.semantic_parsing.wikitables.wikitables_mml_semantic_parser import WikiTablesMmlSemanticParser

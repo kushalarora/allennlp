@@ -51,24 +51,22 @@ class SquadReader(DatasetReader):
         logger.info("Reading file at %s", file_path)
         with open(file_path) as dataset_file:
             dataset_json = json.load(dataset_file)
-            dataset = dataset_json['data']
         logger.info("Reading the dataset")
-        for article in dataset:
-            for paragraph_json in article['paragraphs']:
-                paragraph = paragraph_json["context"]
-                tokenized_paragraph = self._tokenizer.tokenize(paragraph)
+        for article in dataset_json:
+            paragraph = article["context"]
+            tokenized_paragraph = self._tokenizer.tokenize(paragraph)
 
-                for question_answer in paragraph_json['qas']:
-                    question_text = question_answer["question"].strip().replace("\n", "")
-                    answer_texts = [answer['text'] for answer in question_answer['answers']]
-                    span_starts = [answer['answer_start'] for answer in question_answer['answers']]
-                    span_ends = [start + len(answer) for start, answer in zip(span_starts, answer_texts)]
-                    instance = self.text_to_instance(question_text,
-                                                     paragraph,
-                                                     zip(span_starts, span_ends),
-                                                     answer_texts,
-                                                     tokenized_paragraph)
-                    yield instance
+            for question_answer in article['qas']:
+                question_text = question_answer["question"].strip().replace("\n", "")
+                answer_texts = [answer['text'] for answer in question_answer['answers']]
+                span_starts = [answer['answer_start'] for answer in question_answer['answers']]
+                span_ends = [start + len(answer) for start, answer in zip(span_starts, answer_texts)]
+                instance = self.text_to_instance(question_text,
+                                                 paragraph,
+                                                 zip(span_starts, span_ends),
+                                                 answer_texts,
+                                                 tokenized_paragraph)
+                yield instance
 
     @overrides
     def text_to_instance(self,  # type: ignore
@@ -100,6 +98,7 @@ class SquadReader(DatasetReader):
             token_spans.append((span_start, span_end))
 
         return util.make_reading_comprehension_instance(self._tokenizer.tokenize(question_text),
+                                                        self._tokenizer.tokenize(answer_texts[0]),
                                                         passage_tokens,
                                                         self._token_indexers,
                                                         passage_text,
