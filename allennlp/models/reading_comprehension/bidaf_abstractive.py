@@ -1,4 +1,5 @@
 import logging
+import numpy
 from typing import Any, Dict, List, Optional
 
 from overrides import overrides
@@ -296,7 +297,6 @@ class BidirectionalAttentionFlowAbstractive(Model):
             loss = self._get_loss(logits, targets, answer_mask)
             output_dict["loss"] = loss
 
-        import pdb;pdb.set_trace()
         # Compute the EM and F1 on SQuAD and add the tokenized input to the output.
         if metadata is not None:
             question_tokens = []
