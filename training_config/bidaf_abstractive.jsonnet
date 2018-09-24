@@ -19,7 +19,7 @@
       }
     }
   },
-  "train_data_path": "/home/karora/scratch/graphdial/squad/squad-dev-v1.1-w_triples.json",
+  "train_data_path": "/home/karora/scratch/graphdial/squad/squad-train-v1.1-w_triples.json",
   "validation_data_path": "/home/karora/scratch/graphdial/squad/squad-dev-v1.1-w_triples.json",
   "model": {
     "type": "bidaf-abstractive",
@@ -80,7 +80,7 @@
     /*},*/
     "dropout": 0.2,
     "max_decoding_steps": 20,
-    "scheduled_sampling_ratio": 0
+    "scheduled_sampling_ratio": 0.3,
   },
   "iterator": {
     "type": "bucket",
@@ -92,7 +92,7 @@
     "num_epochs": 20,
     "grad_norm": 5.0,
     "patience": 10,
-    "validation_metric": "+em",
+    "validation_metric": "+f1",
     "cuda_device": 0,
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",
