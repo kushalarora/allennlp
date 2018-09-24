@@ -83,6 +83,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
     """
     def __init__(self, vocab: Vocabulary,
                  text_field_embedder: TextFieldEmbedder,
+                 target_field_embedder: TextFieldEmbedder,
                  num_highway_layers: int,
                  phrase_layer: Seq2SeqEncoder,
                  similarity_function: SimilarityFunction,
@@ -117,9 +118,9 @@ class BidirectionalAttentionFlowAbstractive(Model):
         # we're using attention with ``DotProductSimilarity``, this is needed.
         self._encoder_output_dim = encoding_dim * 4 + modeling_dim
         self._decoder_output_dim = self._encoder_output_dim
-        target_embedding_dim = target_embedding_dim or self._text_field_embedder.get_output_dim()
 
-        self._target_embedder = Embedding(num_classes, target_embedding_dim)
+        self._target_embedder = target_field_embedder
+        target_embedding_dim = self._target_embedder.get_output_dim()
         self._decoder_input_dim = target_embedding_dim
         if self._decoder_attention_func:
             self._decoder_attention = LegacyAttention(self._decoder_attention_func)

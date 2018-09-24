@@ -19,7 +19,8 @@
       }
     }
   },
-  "train_data_path": "/home/karora/scratch/graphdial/squad/squad-train-v1.1-w_triples.json",
+  /*"train_data_path": "/home/karora/scratch/graphdial/squad/squad-train-v1.1-w_triples.json",*/
+  "train_data_path": "/home/karora/scratch/graphdial/squad/squad-dev-v1.1-w_triples.json",
   "validation_data_path": "/home/karora/scratch/graphdial/squad/squad-dev-v1.1-w_triples.json",
   "model": {
     "type": "bidaf-abstractive",
@@ -46,6 +47,16 @@
                 "dropout": 0.2
             }
         }
+    },
+    "target_field_embedder": {
+        "token_embedders": {
+            "tokens": {
+                "type": "embedding",
+                "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.100d.txt.gz",
+                "embedding_dim": 100,
+                "trainable": false
+            },
+        },
     },
     "num_highway_layers": 2,
     "phrase_layer": {
@@ -86,11 +97,11 @@
   "iterator": {
     "type": "bucket",
     "sorting_keys": [["passage", "num_tokens"], ["question", "num_tokens"], ["answer", "num_tokens"]],
-    "batch_size": 40
+    "batch_size": 50
   },
 
   "trainer": {
-    "num_epochs": 20,
+    "num_epochs": 100,
     "grad_norm": 5.0,
     "patience": 10,
     "validation_metric": "+f1",
@@ -103,7 +114,7 @@
     },
     "optimizer": {
       "type": "adam",
-      "betas": [0.9, 0.9]
+      /*"lr": 0.001*/
     }
   }
 }
