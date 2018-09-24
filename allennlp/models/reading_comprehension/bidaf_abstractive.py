@@ -89,6 +89,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
                  max_decoding_steps: int,
                  target_embedding_dim: int = None,
                  scheduled_sampling_ratio: float = 0.0,
+                 decoder_attention: SimilarityFunction = None,
                  dropout: float = 0.2,
                  mask_lstms: bool = True,
                  initializer: InitializerApplicator = InitializerApplicator(),
@@ -103,7 +104,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
         self._modeling_layer = modeling_layer
         self._max_decoding_steps = max_decoding_steps
         self._scheduled_sampling_ratio = scheduled_sampling_ratio
-
+        self._decoder_attention = decoder_attention
         self._start_index = self.vocab.get_token_index(START_SYMBOL)
         self._end_index = self.vocab.get_token_index(END_SYMBOL)
         num_classes = self.vocab.get_vocab_size()
@@ -113,11 +114,18 @@ class BidirectionalAttentionFlowAbstractive(Model):
         # Decoder output dim needs to be the same as the encoder output dim since we initialize the
         # hidden state of the decoder with that of the final hidden states of the encoder. Also, if
         # we're using attention with ``DotProductSimilarity``, this is needed.
-        self._decoder_output_dim = encoding_dim * 4 + modeling_dim
-        target_embedding_dim = target_embedding_dim or self._decoder_output_dim
+        self._encoder_output_dim = encoding_dim * 4 + modeling_dim
+        target_embedding_dim = target_embedding_dim or self._text_field_embedder.get_output_dim()
 
         self._target_embedder = Embedding(num_classes, target_embedding_dim)
         self._decoder_input_dim = target_embedding_dim
+        if self._decoder_attention_func:
+            self._decoder_attention = LegacyAttention(self._decoder_attention)
+            # The output of attention, a weighted average over encoder outputs, will be
+            # concatenated to the input vector of the decoder at each time step.
+            self._decoder_input_dim = self._encoder_output_dim + target_embedding_dim
+        else:
+            self._decoder_input_dim = target_embedding_dim
 
         # TODO (pradeep): Do not hardcode decoder cell type.
         self._decoder_cell = LSTMCell(self._decoder_input_dim, self._decoder_output_dim)
@@ -268,7 +276,8 @@ class BidirectionalAttentionFlowAbstractive(Model):
                     input_choices = targets.new_full((batch_size,), fill_value=self._start_index)
                 else:
                     input_choices = last_predictions
-            decoder_input = self._target_embedder(input_choices)
+            decoder_input = self._prepare_decode_step_input(input_choices, decoder_hidden,
+                                                            encoder_outputs, passage_lstm_mask)
             decoder_hidden, decoder_context = self._decoder_cell(decoder_input,
                                                                  (decoder_hidden, decoder_context))
 
@@ -322,6 +331,51 @@ class BidirectionalAttentionFlowAbstractive(Model):
                 'em': exact_match,
                 'f1': f1_score,
                 }
+
+    def _prepare_decode_step_input(self,
+                                   input_indices: torch.LongTensor,
+                                   decoder_hidden_state: torch.LongTensor = None,
+                                   encoder_outputs: torch.LongTensor = None,
+                                   encoder_outputs_mask: torch.LongTensor = None) -> torch.LongTensor:
+        """
+        Given the input indices for the current timestep of the decoder, and all the encoder
+        outputs, compute the input at the current timestep.  Note: This method is agnostic to
+        whether the indices are gold indices or the predictions made by the decoder at the last
+        timestep. So, this can be used even if we're doing some kind of scheduled sampling.
+
+        If we're not using attention, the output of this method is just an embedding of the input
+        indices.  If we are, the output will be a concatentation of the embedding and an attended
+        average of the encoder inputs.
+
+        Parameters
+        ----------
+        input_indices : torch.LongTensor
+            Indices of either the gold inputs to the decoder or the predicted labels from the
+            previous timestep.
+        decoder_hidden_state : torch.LongTensor, optional (not needed if no attention)
+            Output of from the decoder at the last time step. Needed only if using attention.
+        encoder_outputs : torch.LongTensor, optional (not needed if no attention)
+            Encoder outputs from all time steps. Needed only if using attention.
+        encoder_outputs_mask : torch.LongTensor, optional (not needed if no attention)
+            Masks on encoder outputs. Needed only if using attention.
+        """
+        # input_indices : (batch_size,)  since we are processing these one timestep at a time.
+        # (batch_size, target_embedding_dim)
+        embedded_input = self._target_embedder(input_indices)
+        if self._attention_function:
+            # encoder_outputs : (batch_size, input_sequence_length, encoder_output_dim)
+            # Ensuring mask is also a FloatTensor. Or else the multiplication within attention will
+            # complain.
+            encoder_outputs_mask = encoder_outputs_mask.float()
+            # (batch_size, input_sequence_length)
+            input_weights = self._decoder_attention(decoder_hidden_state, encoder_outputs, encoder_outputs_mask)
+            # (batch_size, encoder_output_dim)
+            attended_input = weighted_sum(encoder_outputs, input_weights)
+            # (batch_size, encoder_output_dim + target_embedding_dim)
+            return torch.cat((attended_input, embedded_input), -1)
+        else:
+            return embedded_input
+
 
     @staticmethod
     def _get_loss(logits: torch.LongTensor,

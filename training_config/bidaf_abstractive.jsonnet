@@ -81,6 +81,7 @@
     "dropout": 0.2,
     "max_decoding_steps": 20,
     "scheduled_sampling_ratio": 0.3,
+    "decoder_attention": {"type": "dot_product"},
   },
   "iterator": {
     "type": "bucket",
