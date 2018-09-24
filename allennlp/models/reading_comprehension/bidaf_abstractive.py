@@ -18,6 +18,7 @@ from allennlp.modules.token_embedders import Embedding
 from allennlp.modules import Highway
 from allennlp.modules import Seq2SeqEncoder, SimilarityFunction, TimeDistributed, TextFieldEmbedder
 from allennlp.modules.matrix_attention.legacy_matrix_attention import LegacyMatrixAttention
+from allennlp.modules.attention import LegacyAttention
 from allennlp.nn import util, InitializerApplicator, RegularizerApplicator
 from allennlp.training.metrics import BooleanAccuracy, CategoricalAccuracy, SquadEmAndF1
 
@@ -104,7 +105,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
         self._modeling_layer = modeling_layer
         self._max_decoding_steps = max_decoding_steps
         self._scheduled_sampling_ratio = scheduled_sampling_ratio
-        self._decoder_attention = decoder_attention
+        self._decoder_attention_func = decoder_attention
         self._start_index = self.vocab.get_token_index(START_SYMBOL)
         self._end_index = self.vocab.get_token_index(END_SYMBOL)
         num_classes = self.vocab.get_vocab_size()
@@ -115,12 +116,13 @@ class BidirectionalAttentionFlowAbstractive(Model):
         # hidden state of the decoder with that of the final hidden states of the encoder. Also, if
         # we're using attention with ``DotProductSimilarity``, this is needed.
         self._encoder_output_dim = encoding_dim * 4 + modeling_dim
+        self._decoder_output_dim = self._encoder_output_dim
         target_embedding_dim = target_embedding_dim or self._text_field_embedder.get_output_dim()
 
         self._target_embedder = Embedding(num_classes, target_embedding_dim)
         self._decoder_input_dim = target_embedding_dim
         if self._decoder_attention_func:
-            self._decoder_attention = LegacyAttention(self._decoder_attention)
+            self._decoder_attention = LegacyAttention(self._decoder_attention_func)
             # The output of attention, a weighted average over encoder outputs, will be
             # concatenated to the input vector of the decoder at each time step.
             self._decoder_input_dim = self._encoder_output_dim + target_embedding_dim
@@ -362,7 +364,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
         # input_indices : (batch_size,)  since we are processing these one timestep at a time.
         # (batch_size, target_embedding_dim)
         embedded_input = self._target_embedder(input_indices)
-        if self._attention_function:
+        if self._decoder_attention_func:
             # encoder_outputs : (batch_size, input_sequence_length, encoder_output_dim)
             # Ensuring mask is also a FloatTensor. Or else the multiplication within attention will
             # complain.
@@ -370,7 +372,7 @@ class BidirectionalAttentionFlowAbstractive(Model):
             # (batch_size, input_sequence_length)
             input_weights = self._decoder_attention(decoder_hidden_state, encoder_outputs, encoder_outputs_mask)
             # (batch_size, encoder_output_dim)
-            attended_input = weighted_sum(encoder_outputs, input_weights)
+            attended_input = util.weighted_sum(encoder_outputs, input_weights)
             # (batch_size, encoder_output_dim + target_embedding_dim)
             return torch.cat((attended_input, embedded_input), -1)
         else:
