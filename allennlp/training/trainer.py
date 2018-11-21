@@ -426,6 +426,10 @@ class Trainer:
             batch = util.move_to_device(batch, self._cuda_devices[0])
             output_dict = self._model(**batch)
 
+        if not for_training:
+            for output in output_dict.get('outputs', []):
+                logger.info(output)
+
         try:
             loss = output_dict["loss"]
             if for_training:
